@@ -30,6 +30,7 @@ async function checkStream(url) {
 // ===============================
 app.post("/scan", async (req, res) => {
 
+
 app.post("/load", async (req, res) => {
   const { url } = req.body;
 
@@ -46,6 +47,7 @@ app.post("/load", async (req, res) => {
     res.status(500).json({ error: "No se pudo cargar la lista" });
   }
 });
+
 
 
 
