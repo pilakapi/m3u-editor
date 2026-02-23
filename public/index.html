@@ -109,19 +109,31 @@ async function loadFromURL(){
 
 async function scanChannels(){
   const text = document.getElementById("playlist").value;
-  const channels = parseM3U(text);
+  if(!text) return alert("No hay lista cargada");
 
-  const response = await fetch("/scan",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({channels})
-  });
+  originalChannels = parseM3U(text);
 
-  scanResults = await response.json();
-  displayResults(scanResults);
+  try{
+    const res = await fetch("/scan", {
+      method:"POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channels: originalChannels })
+    });
+
+    if(!res.ok){
+      alert("Error escaneando");
+      return;
+    }
+
+    scanResults = await res.json();
+    display(scanResults);
+
+  } catch(e){
+    alert("Error conectando con el servidor");
+  }
 }
 
-function displayResults(results){
+  function displayResults(results){
   const container = document.getElementById("results");
   container.innerHTML="";
 
@@ -149,4 +161,5 @@ function copyList(){
 
 </body>
 </html>
+
 
