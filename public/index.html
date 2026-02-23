@@ -1,116 +1,145 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>M3U Editor & Scanner</title>
+<title>M3U Editor Pro</title>
 <style>
-body { font-family: Arial; background:#111; color:white; padding:20px; }
-textarea { width:100%; height:150px; }
-button { padding:10px; margin:5px; }
-table { width:100%; margin-top:20px; border-collapse:collapse; }
-td,th { border:1px solid #555; padding:8px; }
-.ok { color:lime; }
-.fail { color:red; }
+body{
+  font-family: Arial, sans-serif;
+  background:#111;
+  color:white;
+  padding:20px;
+}
+h1{color:#00ffcc}
+textarea{
+  width:100%;
+  height:200px;
+  background:#222;
+  color:white;
+  border:1px solid #444;
+  padding:10px;
+}
+button{
+  padding:10px 15px;
+  margin:5px 5px 5px 0;
+  border:none;
+  cursor:pointer;
+  font-weight:bold;
+}
+.primary{background:#00ffcc;color:black}
+.danger{background:#ff3c3c;color:white}
+.ok{background:#2ecc71;color:black}
+input{
+  padding:8px;
+  width:60%;
+}
+.channel{
+  padding:6px;
+  margin:4px 0;
+  border-radius:5px;
+}
+.ok-channel{background:#1e3d2f}
+.fail-channel{background:#5a1a1a;color:#ffaaaa}
 </style>
 </head>
 <body>
 
-<h2>M3U Editor & Scanner</h2>
+<h1>M3U Editor Pro</h1>
 
-<textarea id="m3uInput" placeholder="Pega tu lista M3U aquí..."></textarea>
-<br>
-<input type="file" id="fileInput">
-<br>
-<button onclick="parseM3U()">Cargar Lista</button>
-<button onclick="scanChannels()">Escanear</button>
-<button onclick="downloadM3U()">Descargar Lista</button>
+<input type="file" id="fileInput" accept=".m3u">
+<input type="text" id="urlInput" placeholder="Pegar URL de lista M3U">
+<button class="primary" onclick="loadFromURL()">Cargar URL</button>
 
-<table id="table">
-<thead>
-<tr>
-<th>Nombre</th>
-<th>URL</th>
-<th>Estado</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
+<br><br>
+
+<textarea id="playlist" placeholder="Aquí aparecerá la lista..."></textarea>
+
+<br>
+
+<button class="primary" onclick="scanChannels()">Escanear</button>
+<button class="danger" onclick="filterFailed()">Mostrar solo caídos</button>
+<button class="ok" onclick="copyList()">Copiar Lista</button>
+
+<h2>Resultados</h2>
+<div id="results"></div>
 
 <script>
-let channels = [];
+
+let scanResults = [];
 
 document.getElementById("fileInput").addEventListener("change", function(e){
-  const file = e.target.files[0];
   const reader = new FileReader();
   reader.onload = function(event){
-    document.getElementById("m3uInput").value = event.target.result;
+    document.getElementById("playlist").value = event.target.result;
   };
-  reader.readAsText(file);
+  reader.readAsText(e.target.files[0]);
 });
 
-function parseM3U() {
-  const text = document.getElementById("m3uInput").value;
-  const lines = text.split("\n");
+async function loadFromURL(){
+  const url = document.getElementById("urlInput").value;
+  if(!url) return alert("Pega una URL");
 
-  channels = [];
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].startsWith("#EXTINF")) {
-      const name = lines[i].split(",")[1];
-      const url = lines[i+1];
-      channels.push({ name, url, status: "Sin revisar" });
+  try{
+    const res = await fetch(url);
+    const text = await res.text();
+    document.getElementById("playlist").value = text;
+  }catch{
+    alert("No se pudo cargar la URL");
+  }
+}
+
+function parseM3U(text){
+  const lines = text.split("\n");
+  const channels = [];
+  for(let i=0;i<lines.length;i++){
+    if(lines[i].startsWith("#EXTINF")){
+      channels.push({
+        name: lines[i].split(",")[1] || "Sin nombre",
+        url: lines[i+1]
+      });
     }
   }
-
-  renderTable();
+  return channels;
 }
 
-function renderTable() {
-  const tbody = document.querySelector("#table tbody");
-  tbody.innerHTML = "";
+async function scanChannels(){
+  const text = document.getElementById("playlist").value;
+  const channels = parseM3U(text);
 
-  channels.forEach((ch, index) => {
-    tbody.innerHTML += `
-      <tr>
-        <td contenteditable oninput="editName(${index}, this.innerText)">${ch.name}</td>
-        <td contenteditable oninput="editURL(${index}, this.innerText)">${ch.url}</td>
-        <td class="${ch.status === 'OK' ? 'ok' : ch.status === 'FAIL' ? 'fail' : ''}">${ch.status}</td>
-      </tr>
-    `;
+  const response = await fetch("/scan",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({channels})
+  });
+
+  scanResults = await response.json();
+  displayResults(scanResults);
+}
+
+function displayResults(results){
+  const container = document.getElementById("results");
+  container.innerHTML="";
+
+  results.forEach(ch=>{
+    const div = document.createElement("div");
+    div.className="channel " + (ch.status==="OK"?"ok-channel":"fail-channel");
+    div.innerHTML = ch.name + " - " + ch.status;
+    container.appendChild(div);
   });
 }
 
-function editName(i, value) {
-  channels[i].name = value;
+function filterFailed(){
+  const failed = scanResults.filter(ch=>ch.status==="FAIL");
+  displayResults(failed);
 }
 
-function editURL(i, value) {
-  channels[i].url = value;
+function copyList(){
+  const text = document.getElementById("playlist");
+  text.select();
+  document.execCommand("copy");
+  alert("Lista copiada");
 }
 
-async function scanChannels() {
-  const response = await fetch("/scan", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ channels })
-  });
-
-  channels = await response.json();
-  renderTable();
-}
-
-function downloadM3U() {
-  let content = "#EXTM3U\n";
-  channels.forEach(ch => {
-    content += "#EXTINF:-1," + ch.name + "\n";
-    content += ch.url + "\n";
-  });
-
-  const blob = new Blob([content], { type: "text/plain" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "lista_editada.m3u";
-  a.click();
-}
 </script>
 
 </body>
