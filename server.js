@@ -33,24 +33,24 @@ async function checkStream(url) {
 // API ESCANEAR
 // ===============================
 app.post("/scan", async (req, res) => {
-  const channels = req.body.channels;
+  // ===============================
+// API CARGAR LISTA POR URL
+// ===============================
+app.post("/load", async (req, res) => {
+  const { url } = req.body;
 
-  const results = await Promise.all(
-    channels.map(async (channel) => {
-      const working = await checkStream(channel.url);
-      return {
-        name: channel.name,
-        url: channel.url,
-        status: working ? "OK" : "FAIL"
-      };
-    })
-  );
+  try {
+    const response = await axios.get(url, {
+      timeout: 15000,
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      }
+    });
 
-  res.json(results);
+    res.send(response.data);
+  } catch (error) {
+    res.status(500).json({ error: "No se pudo cargar la lista" });
+  }
 });
 
-app.listen(PORT, () => {
-  console.log("Servidor corriendo en puerto " + PORT);
-
-});
 
