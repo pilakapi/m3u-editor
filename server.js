@@ -29,7 +29,6 @@ async function checkStream(url) {
 // API ESCANEAR
 // ===============================
 app.post("/scan", async (req, res) => {
-const channels = req.body.channels;
 });
 
 app.post("/load", async (req, res) => {
@@ -52,6 +51,7 @@ app.post("/load", async (req, res) => {
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto " + PORT);
 });
+
 
 
 
