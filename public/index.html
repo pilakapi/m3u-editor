@@ -88,18 +88,23 @@ async function loadFromURL(){
   }
 }
 
-function parseM3U(text){
-  const lines = text.split("\n");
-  const channels = [];
-  for(let i=0;i<lines.length;i++){
-    if(lines[i].startsWith("#EXTINF")){
-      channels.push({
-        name: lines[i].split(",")[1] || "Sin nombre",
-        url: lines[i+1]
-      });
-    }
+async function loadFromURL(){
+  const url=document.getElementById("urlInput").value;
+  if(!url) return alert("Pega una URL");
+
+  const res=await fetch("/load",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({url})
+  });
+
+  if(!res.ok){
+    alert("No se pudo cargar");
+    return;
   }
-  return channels;
+
+  const text=await res.text();
+  document.getElementById("playlist").value=text;
 }
 
 async function scanChannels(){
@@ -144,3 +149,4 @@ function copyList(){
 
 </body>
 </html>
+
