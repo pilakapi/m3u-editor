@@ -2,14 +2,15 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>M3U Editor PRO</title>
+<title>M3U Editor Pro</title>
 <style>
 body{
-  font-family: Arial;
+  font-family: Arial, sans-serif;
   background:#111;
   color:white;
   padding:20px;
 }
+h1{color:#00ffcc}
 textarea{
   width:100%;
   height:200px;
@@ -18,12 +19,8 @@ textarea{
   border:1px solid #444;
   padding:10px;
 }
-input{
-  padding:8px;
-  margin:5px 0;
-}
 button{
-  padding:8px 12px;
+  padding:10px 15px;
   margin:5px 5px 5px 0;
   border:none;
   cursor:pointer;
@@ -32,10 +29,14 @@ button{
 .primary{background:#00ffcc;color:black}
 .danger{background:#ff3c3c;color:white}
 .ok{background:#2ecc71;color:black}
-.channel{
+input{
   padding:8px;
-  margin:5px 0;
-  border-radius:6px;
+  width:60%;
+}
+.channel{
+  padding:6px;
+  margin:4px 0;
+  border-radius:5px;
 }
 .ok-channel{background:#1e3d2f}
 .fail-channel{background:#5a1a1a;color:#ffaaaa}
@@ -43,142 +44,103 @@ button{
 </head>
 <body>
 
-<h1>M3U Editor PRO</h1>
+<h1>M3U Editor Pro</h1>
 
 <input type="file" id="fileInput" accept=".m3u">
-<br>
-<input type="text" id="urlInput" placeholder="Pegar URL M3U" style="width:60%">
+<input type="text" id="urlInput" placeholder="Pegar URL de lista M3U">
 <button class="primary" onclick="loadFromURL()">Cargar URL</button>
 
 <br><br>
 
-<textarea id="playlist"></textarea>
+<textarea id="playlist" placeholder="Aquí aparecerá la lista..."></textarea>
 
 <br>
 
 <button class="primary" onclick="scanChannels()">Escanear</button>
-<button class="danger" onclick="showFailed()">Solo caídos</button>
-<button class="ok" onclick="downloadList()">Descargar .m3u</button>
-
-<br><br>
-
-<input type="text" id="searchInput" placeholder="Buscar canal..." onkeyup="searchChannel()" style="width:50%">
+<button class="danger" onclick="filterFailed()">Mostrar solo caídos</button>
+<button class="ok" onclick="copyList()">Copiar Lista</button>
 
 <h2>Resultados</h2>
 <div id="results"></div>
 
 <script>
 
-let scanResults=[];
-let originalChannels=[];
+let scanResults = [];
 
 document.getElementById("fileInput").addEventListener("change", function(e){
-  const reader=new FileReader();
-  reader.onload=function(event){
-    document.getElementById("playlist").value=event.target.result;
+  const reader = new FileReader();
+  reader.onload = function(event){
+    document.getElementById("playlist").value = event.target.result;
   };
   reader.readAsText(e.target.files[0]);
 });
 
 async function loadFromURL(){
-  const url=document.getElementById("urlInput").value;
+  const url = document.getElementById("urlInput").value;
   if(!url) return alert("Pega una URL");
 
-  const res=await fetch("/load",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({url})
-  });
-
-  if(!res.ok) return alert("No se pudo cargar");
-
-  const text=await res.text();
-  document.getElementById("playlist").value=text;
- }
+  try{
+    const res = await fetch(url);
+    const text = await res.text();
+    document.getElementById("playlist").value = text;
+  }catch{
+    alert("No se pudo cargar la URL");
+  }
 }
 
 function parseM3U(text){
-  const lines = text.split(/\r?\n/);
+  const lines = text.split("\n");
   const channels = [];
-
-  for(let i = 0; i < lines.length; i++){
-    const line = lines[i].trim();
-
-    if(line.startsWith("#EXTINF")){
-      const name = line.split(",")[1] || "Sin nombre";
-      const url = (lines[i+1] || "").trim();
-
-      if(url && !url.startsWith("#")){
-        channels.push({ name, url });
-      }
+  for(let i=0;i<lines.length;i++){
+    if(lines[i].startsWith("#EXTINF")){
+      channels.push({
+        name: lines[i].split(",")[1] || "Sin nombre",
+        url: lines[i+1]
+      });
     }
   }
-
   return channels;
 }
 
 async function scanChannels(){
-  const text=document.getElementById("playlist").value;
-  originalChannels=parseM3U(text);
+  const text = document.getElementById("playlist").value;
+  const channels = parseM3U(text);
 
-  const res=await fetch("/scan",{
+  const response = await fetch("/scan",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({channels:originalChannels})
+    body:JSON.stringify({channels})
   });
 
-  scanResults=await res.json();
-  display(scanResults);
+  scanResults = await response.json();
+  displayResults(scanResults);
 }
 
-function display(list){
-  const container=document.getElementById("results");
+function displayResults(results){
+  const container = document.getElementById("results");
   container.innerHTML="";
-  list.forEach((ch,index)=>{
-    const div=document.createElement("div");
-    div.className="channel "+(ch.status==="OK"?"ok-channel":"fail-channel");
 
-    div.innerHTML=`
-      <b>${ch.name}</b> - ${ch.status}
-      <br>
-      <input value="${ch.url}" onchange="updateURL(${index},this.value)" style="width:80%">
-    `;
-
+  results.forEach(ch=>{
+    const div = document.createElement("div");
+    div.className="channel " + (ch.status==="OK"?"ok-channel":"fail-channel");
+    div.innerHTML = ch.name + " - " + ch.status;
     container.appendChild(div);
   });
 }
 
-function updateURL(index,newURL){
-  originalChannels[index].url=newURL;
+function filterFailed(){
+  const failed = scanResults.filter(ch=>ch.status==="FAIL");
+  displayResults(failed);
 }
 
-function showFailed(){
-  const failed=scanResults.filter(ch=>ch.status==="FAIL");
-  display(failed);
-}
-
-function searchChannel(){
-  const value=document.getElementById("searchInput").value.toLowerCase();
-  const filtered=scanResults.filter(ch=>ch.name.toLowerCase().includes(value));
-  display(filtered);
-}
-
-function downloadList(){
-  let text="#EXTM3U\n";
-  originalChannels.forEach(ch=>{
-    text+=`#EXTINF:-1,${ch.name}\n${ch.url}\n`;
-  });
-
-  const blob=new Blob([text],{type:"text/plain"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="lista_editada.m3u";
-  a.click();
+function copyList(){
+  const text = document.getElementById("playlist");
+  text.select();
+  document.execCommand("copy");
+  alert("Lista copiada");
 }
 
 </script>
 
 </body>
 </html>
-
-
