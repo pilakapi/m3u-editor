@@ -10,10 +10,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 const PORT = process.env.PORT || 3000;
-
-// ===============================
-// FUNCION PARA VERIFICAR STREAM
-// ===============================
 async function checkStream(url) {
   try {
     const response = await axios.get(url, {
@@ -52,5 +48,6 @@ app.post("/load", async (req, res) => {
     res.status(500).json({ error: "No se pudo cargar la lista" });
   }
 });
+
 
 
