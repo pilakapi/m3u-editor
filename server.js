@@ -38,9 +38,8 @@ app.post("/scan", async (req, res) => {
   const results = await Promise.all(
     channels.map(async (channel) => {
       const working = await checkStream(channel.url);
-      // ===============================
-// API CARGAR LISTA POR URL
-// ===============================
+ });
+
 app.post("/load", async (req, res) => {
   const { url } = req.body;
 
