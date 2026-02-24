@@ -33,11 +33,6 @@ async function checkStream(url) {
 // API ESCANEAR
 // ===============================
 app.post("/scan", async (req, res) => {
-  const channels = req.body.channels;
-
-  const results = await Promise.all(
-    channels.map(async (channel) => {
-      const working = await checkStream(channel.url);
  });
 
 app.post("/load", async (req, res) => {
@@ -62,3 +57,4 @@ app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto " + PORT);
 
 });
+
