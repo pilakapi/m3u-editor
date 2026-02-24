@@ -10,6 +10,10 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 const PORT = process.env.PORT || 3000;
+
+// ===============================
+// FUNCION PARA VERIFICAR STREAM
+// ===============================
 async function checkStream(url) {
   try {
     const response = await axios.get(url, {
@@ -29,8 +33,14 @@ async function checkStream(url) {
 // API ESCANEAR
 // ===============================
 app.post("/scan", async (req, res) => {
-});
+  const channels = req.body.channels;
 
+  const results = await Promise.all(
+    channels.map(async (channel) => {
+      const working = await checkStream(channel.url);
+      // ===============================
+// API CARGAR LISTA POR URL
+// ===============================
 app.post("/load", async (req, res) => {
   const { url } = req.body;
 
@@ -48,15 +58,8 @@ app.post("/load", async (req, res) => {
   }
 });
 
+
 app.listen(PORT, () => {
   console.log("Servidor corriendo en puerto " + PORT);
+
 });
-
-
-
-
-
-
-
-
-
