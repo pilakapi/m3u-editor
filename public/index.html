@@ -1,175 +1,806 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>M3U Editor PRO</title>
-<style>
-body{
-  font-family: Arial;
-  background:#111;
-  color:white;
-  padding:20px;
-}
-textarea{
-  width:100%;
-  height:200px;
-  background:#222;
-  color:white;
-  border:1px solid #444;
-  padding:10px;
-}
-input{
-  padding:8px;
-  margin:5px 0;
-}
-button{
-  padding:8px 12px;
-  margin:5px 5px 5px 0;
-  border:none;
-  cursor:pointer;
-  font-weight:bold;
-}
-.primary{background:#00ffcc;color:black}
-.danger{background:#ff3c3c;color:white}
-.ok{background:#2ecc71;color:black}
-.channel{
-  padding:8px;
-  margin:5px 0;
-  border-radius:6px;
-}
-.ok-channel{background:#1e3d2f}
-.fail-channel{background:#5a1a1a;color:#ffaaaa}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M3U Editor Pro - Gestor de Listas IPTV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155',
+                            600: '#475569'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+        }
+
+        .gradient-border {
+            position: relative;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            padding: 1px;
+            border-radius: 0.75rem;
+        }
+
+        .gradient-border > * {
+            background: #1e293b;
+            border-radius: 0.7rem;
+        }
+
+        .channel-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px -10px rgba(99, 102, 241, 0.3);
+        }
+
+        .status-online {
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .status-offline {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .status-pending {
+            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        @keyframes pulse-scan {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .scanning {
+            animation: pulse-scan 1.5s ease-in-out infinite;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        .loading-spinner {
+            border: 3px solid #334155;
+            border-top: 3px solid #6366f1;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
-<body>
+<body class="bg-dark-900 text-slate-200 min-h-screen">
 
-<h1>M3U Editor PRO</h1>
+    <!-- Header -->
+    <header class="glass sticky top-0 z-50 border-b border-dark-700">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-play text-white text-sm"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white">M3U Editor Pro</h1>
+                        <p class="text-xs text-slate-400">Gestor de Listas IPTV</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="downloadList()" class="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2">
+                        <i class="fas fa-download"></i>
+                        <span>Exportar .m3u</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
 
-<input type="file" id="fileInput" accept=".m3u">
-<br>
-<input type="text" id="urlInput" placeholder="Pegar URL M3U" style="width:60%">
-<button class="primary" onclick="loadFromURL()">Cargar URL</button>
+    <main class="max-w-7xl mx-auto px-4 py-6">
 
-<br><br>
+        <!-- Panel de Carga -->
+        <section class="mb-6">
+            <div class="grid-border rounded-xl p-1">
+                <div class="bg-dark-800 rounded-xl p-6">
+                    <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fas fa-folder-open text-indigo-400"></i>
+                        Cargar Lista M3U
+                    </h2>
 
-<textarea id="playlist"></textarea>
+                    <!-- Tabs -->
+                    <div class="flex gap-2 mb-4">
+                        <button onclick="switchTab('file')" id="tab-file" class="px-4 py-2 rounded-lg font-medium transition-all bg-indigo-600 text-white">
+                            <i class="fas fa-file-upload mr-2"></i>Subir Archivo
+                        </button>
+                        <button onclick="switchTab('url')" id="tab-url" class="px-4 py-2 rounded-lg font-medium transition-all bg-dark-700 text-slate-400 hover:text-white">
+                            <i class="fas fa-link mr-2"></i>Desde URL
+                        </button>
+                    </div>
 
-<br>
+                    <!-- File Input -->
+                    <div id="panel-file" class="block">
+                        <div class="border-2 border-dashed border-dark-600 rounded-xl p-8 text-center hover:border-indigo-500 transition-colors cursor-pointer" onclick="document.getElementById('fileInput').click()">
+                            <input type="file" id="fileInput" accept=".m3u,.m3u8" class="hidden" onchange="handleFileSelect(event)">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-indigo-400 mb-3"></i>
+                            <p class="text-slate-300 font-medium">Haz clic o arrastra tu archivo .m3u</p>
+                            <p class="text-slate-500 text-sm mt-1">Archivos soportados: .m3u, .m3u8</p>
+                        </div>
+                    </div>
 
-<button class="primary" onclick="scanChannels()">Escanear</button>
-<button class="danger" onclick="showFailed()">Solo caídos</button>
-<button class="ok" onclick="downloadList()">Descargar .m3u</button>
+                    <!-- URL Input -->
+                    <div id="panel-url" class="hidden">
+                        <div class="flex gap-3">
+                            <input type="text" id="urlInput" placeholder="Pega aquí la URL de tu lista M3U..."
+                                class="flex-1 bg-dark-700 border border-dark-600 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors">
+                            <button onclick="loadFromURL()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-lg font-medium transition-all flex items-center gap-2">
+                                <i class="fas fa-download"></i>
+                                Cargar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-<br><br>
+        <!-- Estadísticas -->
+        <section id="stats-section" class="mb-6 hidden">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-dark-800 rounded-xl p-4 border border-dark-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-slate-400 text-sm">Total Canales</p>
+                            <p id="stat-total" class="text-2xl font-bold text-white">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-list text-indigo-400 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-dark-800 rounded-xl p-4 border border-dark-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-slate-400 text-sm">En Línea</p>
+                            <p id="stat-online" class="text-2xl font-bold text-emerald-400">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-check-circle text-emerald-400 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-dark-800 rounded-xl p-4 border border-dark-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-slate-400 text-sm">Caídos</p>
+                            <p id="stat-offline" class="text-2xl font-bold text-red-400">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-times-circle text-red-400 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-dark-800 rounded-xl p-4 border border-dark-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-slate-400 text-sm">Pendientes</p>
+                            <p id="stat-pending" class="text-2xl font-bold text-amber-400">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-amber-500/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-clock text-amber-400 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-<input type="text" id="searchInput" placeholder="Buscar canal..." onkeyup="searchChannel()" style="width:50%">
+        <!-- Barra de Progreso -->
+        <section id="progress-section" class="mb-6 hidden">
+            <div class="bg-dark-800 rounded-xl p-4 border border-dark-700">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-slate-300">
+                        <i class="fas fa-radar mr-2 text-indigo-400"></i>Escaneando canales...
+                    </span>
+                    <span id="progress-text" class="text-sm text-slate-400">0 / 0</span>
+                </div>
+                <div class="w-full bg-dark-700 rounded-full h-3 overflow-hidden">
+                    <div id="progress-bar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <p id="progress-status" class="text-xs text-slate-500 mt-2">Preparando escaneo...</p>
+            </div>
+        </section>
 
-<h2>Resultados</h2>
-<div id="results"></div>
+        <!-- Panel de Control -->
+        <section id="controls-section" class="mb-6 hidden">
+            <div class="bg-dark-800 rounded-xl p-4 border border-dark-700">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button onclick="scanAllChannels()" id="btn-scan" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-5 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2">
+                            <i class="fas fa-radar"></i>
+                            <span>Escanear Todo</span>
+                        </button>
+                        <button onclick="showOnlineOnly()" class="bg-dark-700 hover:bg-dark-600 text-emerald-400 px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2">
+                            <i class="fas fa-check"></i>
+                            Solo en Línea
+                        </button>
+                        <button onclick="showOfflineOnly()" class="bg-dark-700 hover:bg-dark-600 text-red-400 px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2">
+                            <i class="fas fa-times"></i>
+                            Solo Caídos
+                        </button>
+                        <button onclick="showAllChannels()" class="bg-dark-700 hover:bg-dark-600 text-slate-300 px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2">
+                            <i class="fas fa-list"></i>
+                            Ver Todos
+                        </button>
+                        <button onclick="removeOfflineChannels()" class="bg-red-600/20 hover:bg-red-600/30 text-red-400 px-4 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2">
+                            <i class="fas fa-trash"></i>
+                            Eliminar Caídos
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
+                            <input type="text" id="searchInput" onkeyup="searchChannels()"
+                                placeholder="Buscar canal..."
+                                class="bg-dark-700 border border-dark-600 rounded-lg pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors w-64">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-<script>
+        <!-- Lista de Canales -->
+        <section id="channels-section" class="hidden">
+            <div class="bg-dark-800 rounded-xl border border-dark-700 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-dark-700/50">
+                            <tr>
+                                <th class="text-left px-4 py-3 text-slate-400 font-medium text-sm">Estado</th>
+                                <th class="text-left px-4 py-3 text-slate-400 font-medium text-sm">Canal</th>
+                                <th class="text-left px-4 py-3 text-slate-400 font-medium text-sm">Grupo</th>
+                                <th class="text-left px-4 py-3 text-slate-400 font-medium text-sm">URL</th>
+                                <th class="text-left px-4 py-3 text-slate-400 font-medium text-sm">Latencia</th>
+                                <th class="text-center px-4 py-3 text-slate-400 font-medium text-sm">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="channels-table">
+                            <!-- Canales se insertarán aquí -->
+                        </tbody>
+                    </table>
+                </div>
 
-let scanResults=[];
-let originalChannels=[];
+                <!-- Mensaje cuando no hay canales -->
+                <div id="empty-message" class="hidden p-12 text-center">
+                    <i class="fas fa-folder-open text-5xl text-slate-600 mb-4"></i>
+                    <p class="text-slate-400 text-lg">No se encontraron canales</p>
+                    <p class="text-slate-500 text-sm mt-1">Carga una lista M3U para comenzar</p>
+                </div>
+            </div>
+        </section>
 
-document.getElementById("fileInput").addEventListener("change", function(e){
-  const reader=new FileReader();
-  reader.onload=function(event){
-    document.getElementById("playlist").value=event.target.result;
-  };
-  reader.readAsText(e.target.files[0]);
-});
+        <!-- Mensaje de bienvenida -->
+        <section id="welcome-section" class="py-20 text-center">
+            <div class="max-w-md mx-auto">
+                <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <i class="fas fa-tv text-3xl text-white"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-white mb-3">Bienvenido a M3U Editor Pro</h2>
+                <p class="text-slate-400 mb-6">Carga tu lista M3U para escanear, editar y exportar tus canales IPTV</p>
+                <div class="flex flex-wrap justify-center gap-4 text-sm text-slate-500">
+                    <span class="flex items-center gap-2"><i class="fas fa-check text-emerald-400"></i> Escaneo rápido</span>
+                    <span class="flex items-center gap-2"><i class="fas fa-check text-emerald-400"></i> Editor visual</span>
+                    <span class="flex items-center gap-2"><i class="fas fa-check text-emerald-400"></i> Exportar M3U</span>
+                </div>
+            </div>
+        </section>
 
-async function loadFromURL(){
-  const url=document.getElementById("urlInput").value;
-  if(!url) return alert("Pega una URL");
+    </main>
 
-  const res=await fetch("/load",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({url})
-  });
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50"></div>
 
-  if(!res.ok) return alert("No se pudo cargar");
+    <script>
+        // Variables globales
+        let channels = [];
+        let filteredChannels = [];
+        let isScanning = false;
+        let currentFilter = 'all';
 
-  const text=await res.text();
-  document.getElementById("playlist").value=text;
-}
+        // ==========================================
+        // FUNCIONES DE INTERFAZ
+        // ==========================================
 
-function parseM3U(text){
-  const lines=text.split("\n");
-  const channels=[];
-  for(let i=0;i<lines.length;i++){
-    if(lines[i].startsWith("#EXTINF")){
-      channels.push({
-        name:lines[i].split(",")[1]||"Sin nombre",
-        url:lines[i+1]
-      });
-    }
-  }
-  return channels;
-}
+        function switchTab(tab) {
+            document.getElementById('panel-file').classList.add('hidden');
+            document.getElementById('panel-url').classList.add('hidden');
+            document.getElementById('tab-file').classList.remove('bg-indigo-600', 'text-white');
+            document.getElementById('tab-file').classList.add('bg-dark-700', 'text-slate-400');
+            document.getElementById('tab-url').classList.remove('bg-indigo-600', 'text-white');
+            document.getElementById('tab-url').classList.add('bg-dark-700', 'text-slate-400');
 
-async function scanChannels(){
-  const text=document.getElementById("playlist").value;
-  originalChannels=parseM3U(text);
+            document.getElementById('panel-' + tab).classList.remove('hidden');
+            document.getElementById('tab-' + tab).classList.add('bg-indigo-600', 'text-white');
+            document.getElementById('tab-' + tab).classList.remove('bg-dark-700', 'text-slate-400');
+        }
 
-  const res=await fetch("/scan",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({channels:originalChannels})
-  });
+        function showToast(message, type = 'info') {
+            const colors = {
+                success: 'bg-emerald-600',
+                error: 'bg-red-600',
+                warning: 'bg-amber-600',
+                info: 'bg-indigo-600'
+            };
 
-  scanResults=await res.json();
-  display(scanResults);
-}
+            const toast = document.createElement('div');
+            toast.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg mb-2 flex items-center gap-2 transform transition-all duration-300 translate-x-full`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
 
-function display(list){
-  const container=document.getElementById("results");
-  container.innerHTML="";
-  list.forEach((ch,index)=>{
-    const div=document.createElement("div");
-    div.className="channel "+(ch.status==="OK"?"ok-channel":"fail-channel");
+            document.getElementById('toast-container').appendChild(toast);
 
-    div.innerHTML=`
-      <b>${ch.name}</b> - ${ch.status}
-      <br>
-      <input value="${ch.url}" onchange="updateURL(${index},this.value)" style="width:80%">
-    `;
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full');
+            }, 100);
 
-    container.appendChild(div);
-  });
-}
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
 
-function updateURL(index,newURL){
-  originalChannels[index].url=newURL;
-}
+        function showSection(id) {
+            document.getElementById('welcome-section').classList.add('hidden');
+            document.getElementById('stats-section').classList.remove('hidden');
+            document.getElementById('controls-section').classList.remove('hidden');
+            document.getElementById('channels-section').classList.remove('hidden');
+        }
 
-function showFailed(){
-  const failed=scanResults.filter(ch=>ch.status==="FAIL");
-  display(failed);
-}
+        // ==========================================
+        // FUNCIONES DE CARGA DE ARCHIVOS
+        // ==========================================
 
-function searchChannel(){
-  const value=document.getElementById("searchInput").value.toLowerCase();
-  const filtered=scanResults.filter(ch=>ch.name.toLowerCase().includes(value));
-  display(filtered);
-}
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-function downloadList(){
-  let text="#EXTM3U\n";
-  originalChannels.forEach(ch=>{
-    text+=`#EXTINF:-1,${ch.name}\n${ch.url}\n`;
-  });
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                parseAndLoadM3U(e.target.result);
+                showToast('Archivo cargado correctamente', 'success');
+            };
+            reader.onerror = function() {
+                showToast('Error al leer el archivo', 'error');
+            };
+            reader.readAsText(file);
+        }
 
-  const blob=new Blob([text],{type:"text/plain"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="lista_editada.m3u";
-  a.click();
-}
+        async function loadFromURL() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (!url) {
+                showToast('Por favor ingresa una URL', 'warning');
+                return;
+            }
 
-</script>
+            const btn = event.target;
+            btn.innerHTML = '<div class="loading-spinner"></div> Cargando...';
+            btn.disabled = true;
 
+            try {
+                const res = await fetch('/load', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+
+                if (!res.ok) throw new Error('Error al cargar');
+
+                const text = await res.text();
+                parseAndLoadM3U(text);
+                showToast('Lista cargada desde URL', 'success');
+            } catch (error) {
+                showToast('No se pudo cargar la lista: ' + error.message, 'error');
+            } finally {
+                btn.innerHTML = '<i class="fas fa-download"></i> Cargar';
+                btn.disabled = false;
+            }
+        }
+
+        // ==========================================
+        // PARSER M3U
+        // ==========================================
+
+        function parseAndLoadM3U(text) {
+            const lines = text.split('\n');
+            channels = [];
+
+            let currentChannel = null;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+
+                if (line.startsWith('#EXTINF:')) {
+                    // Extraer atributos
+                    const attributes = {};
+
+                    // tvg-name
+                    const tvgNameMatch = line.match(/tvg-name="([^"]*)"/i);
+                    if (tvgNameMatch) attributes.tvgName = tvgNameMatch[1];
+
+                    // tvg-logo
+                    const tvgLogoMatch = line.match(/tvg-logo="([^"]*)"/i);
+                    if (tvgLogoMatch) attributes.tvgLogo = tvgLogoMatch[1];
+
+                    // group-title
+                    const groupMatch = line.match(/group-title="([^"]*)"/i);
+                    if (groupMatch) attributes.group = groupMatch[1];
+
+                    // Nombre del canal (después de la coma)
+                    const commaIndex = line.indexOf(',');
+                    const name = commaIndex > -1 ? line.substring(commaIndex + 1).trim() : 'Sin nombre';
+
+                    currentChannel = {
+                        id: channels.length,
+                        name: name,
+                        logo: attributes.tvgLogo || '',
+                        group: attributes.group || 'Sin grupo',
+                        url: '',
+                        status: 'pending',
+                        latency: null,
+                        error: null
+                    };
+                } else if (line && !line.startsWith('#') && currentChannel) {
+                    currentChannel.url = line;
+                    channels.push(currentChannel);
+                    currentChannel = null;
+                }
+            }
+
+            filteredChannels = [...channels];
+            updateStats();
+            renderChannels();
+            showSection();
+        }
+
+        // ==========================================
+        // ESTADÍSTICAS
+        // ==========================================
+
+        function updateStats() {
+            const total = channels.length;
+            const online = channels.filter(c => c.status === 'online').length;
+            const offline = channels.filter(c => c.status === 'offline').length;
+            const pending = channels.filter(c => c.status === 'pending').length;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-online').textContent = online;
+            document.getElementById('stat-offline').textContent = offline;
+            document.getElementById('stat-pending').textContent = pending;
+        }
+
+        // ==========================================
+        // ESCANEO DE CANALES
+        // ==========================================
+
+        async function scanAllChannels() {
+            if (channels.length === 0) {
+                showToast('No hay canales para escanear', 'warning');
+                return;
+            }
+
+            if (isScanning) {
+                showToast('Escaneo en progreso...', 'warning');
+                return;
+            }
+
+            isScanning = true;
+            document.getElementById('progress-section').classList.remove('hidden');
+            document.getElementById('btn-scan').disabled = true;
+            document.getElementById('btn-scan').innerHTML = '<div class="loading-spinner"></div> Escaneando...';
+
+            const urls = channels.map(c => c.url);
+            const total = urls.length;
+            let scanned = 0;
+
+            // Procesar en lotes de 10
+            const batchSize = 10;
+
+            for (let i = 0; i < urls.length; i += batchSize) {
+                const batch = urls.slice(i, i + batchSize);
+
+                try {
+                    const res = await fetch('/scan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ urls: batch })
+                    });
+
+                    const results = await res.json();
+
+                    // Actualizar canales con resultados
+                    results.forEach((result, index) => {
+                        const channelIndex = i + index;
+                        if (channelIndex < channels.length) {
+                            channels[channelIndex].status = result.status;
+                            channels[channelIndex].latency = result.latency || null;
+                            channels[channelIndex].error = result.error || null;
+                        }
+                    });
+
+                    scanned += results.length;
+
+                    // Actualizar progreso
+                    const percent = Math.round((scanned / total) * 100);
+                    document.getElementById('progress-bar').style.width = percent + '%';
+                    document.getElementById('progress-text').textContent = `${scanned} / ${total}`;
+                    document.getElementById('progress-status').textContent = `Escaneando lote ${Math.ceil(i/batchSize) + 1} de ${Math.ceil(total/batchSize)}...`;
+
+                    // Actualizar visualización
+                    updateStats();
+                    renderChannels();
+
+                } catch (error) {
+                    console.error('Error en escaneo:', error);
+                    showToast('Error al escanear algunos canales', 'error');
+                }
+
+                // Pequeña pausa entre lotes
+                await new Promise(r => setTimeout(r, 500));
+            }
+
+            isScanning = false;
+            document.getElementById('progress-section').classList.add('hidden');
+            document.getElementById('btn-scan').disabled = false;
+            document.getElementById('btn-scan').innerHTML = '<i class="fas fa-radar"></i> <span>Escanear Todo</span>';
+
+            const online = channels.filter(c => c.status === 'online').length;
+            showToast(`Escaneo completado: ${online} canales en línea`, 'success');
+
+            applyFilter();
+        }
+
+        // ==========================================
+        // RENDERIZADO DE CANALES
+        // ==========================================
+
+        function renderChannels() {
+            const tbody = document.getElementById('channels-table');
+            const listToRender = filteredChannels.length > 0 || currentFilter !== 'all' || document.getElementById('searchInput').value ? filteredChannels : channels;
+
+            if (listToRender.length === 0) {
+                document.getElementById('empty-message').classList.remove('hidden');
+                tbody.innerHTML = '';
+                return;
+            }
+
+            document.getElementById('empty-message').classList.add('hidden');
+
+            tbody.innerHTML = listToRender.map(channel => {
+                const statusClass = channel.status === 'online' ? 'status-online' :
+                                   channel.status === 'offline' ? 'status-offline' : 'status-pending';
+                const statusIcon = channel.status === 'online' ? 'fa-check-circle' :
+                                  channel.status === 'offline' ? 'fa-times-circle' : 'fa-clock';
+                const statusText = channel.status === 'online' ? 'En línea' :
+                                 channel.status === 'offline' ? 'Caído' : 'Pendiente';
+
+                return `
+                    <tr class="channel-card border-b border-dark-700/50 hover:bg-dark-700/30 transition-all">
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusClass}">
+                                <i class="fas ${statusIcon}"></i>
+                                ${statusText}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-3">
+                                ${channel.logo ? `<img src="${channel.logo}" alt="" class="w-8 h-8 rounded object-cover" onerror="this.style.display='none'">` : ''}
+                                <span class="font-medium text-white">${channel.name}</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="text-slate-400">${channel.group}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <input type="text" value="${channel.url}"
+                                onchange="updateChannelURL(${channel.id}, this.value)"
+                                class="bg-dark-700 border border-dark-600 rounded px-2 py-1 text-sm text-slate-300 w-64 focus:outline-none focus:border-indigo-500">
+                        </td>
+                        <td class="px-4 py-3">
+                            ${channel.latency ? `<span class="text-emerald-400 text-sm">${channel.latency}ms</span>` :
+                              channel.status === 'offline' ? `<span class="text-red-400 text-sm">${channel.error || 'Error'}</span>` :
+                              '<span class="text-slate-500">-</span>'}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="testChannel(${channel.id})" class="p-2 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/20 rounded-lg transition-all" title="Probar">
+                                    <i class="fas fa-bolt"></i>
+                                </button>
+                                <button onclick="deleteChannel(${channel.id})" class="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-all" title="Eliminar">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ==========================================
+        // ACCIONES DE CANALES
+        // ==========================================
+
+        function updateChannelURL(id, newURL) {
+            const channel = channels.find(c => c.id === id);
+            if (channel) {
+                channel.url = newURL;
+                channel.status = 'pending';
+                updateStats();
+                showToast('URL actualizada', 'success');
+            }
+        }
+
+        async function testChannel(id) {
+            const channel = channels.find(c => c.id === id);
+            if (!channel) return;
+
+            const btn = event.target.closest('button');
+            btn.innerHTML = '<div class="loading-spinner w-4 h-4"></div>';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/scan-single', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: channel.url })
+                });
+
+                const result = await res.json();
+
+                channel.status = result.status;
+                channel.latency = result.latency || null;
+                channel.error = result.error || null;
+
+                updateStats();
+                renderChannels();
+
+                showToast(channel.status === 'online' ? 'Canal en línea' : 'Canal caído',
+                         channel.status === 'online' ? 'success' : 'error');
+
+            } catch (error) {
+                showToast('Error al probar canal', 'error');
+            } finally {
+                btn.innerHTML = '<i class="fas fa-bolt"></i>';
+                btn.disabled = false;
+            }
+        }
+
+        function deleteChannel(id) {
+            channels = channels.filter(c => c.id !== id);
+            updateStats();
+            applyFilter();
+            showToast('Canal eliminado', 'success');
+        }
+
+        function removeOfflineChannels() {
+            const count = channels.filter(c => c.status === 'offline').length;
+            if (count === 0) {
+                showToast('No hay canales caídos para eliminar', 'info');
+                return;
+            }
+
+            channels = channels.filter(c => c.status !== 'offline');
+            updateStats();
+            applyFilter();
+            showToast(`${count} canales caídos eliminados`, 'success');
+        }
+
+        // ==========================================
+        // FILTROS Y BÚSQUEDA
+        // ==========================================
+
+        function searchChannels() {
+            applyFilter();
+        }
+
+        function applyFilter() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            filteredChannels = channels.filter(channel => {
+                // Filtrar por búsqueda
+                const matchesSearch = channel.name.toLowerCase().includes(search) ||
+                                     channel.group.toLowerCase().includes(search);
+
+                // Filtrar por estado
+                let matchesFilter = true;
+                if (currentFilter === 'online') matchesFilter = channel.status === 'online';
+                else if (currentFilter === 'offline') matchesFilter = channel.status === 'offline';
+
+                return matchesSearch && matchesFilter;
+            });
+
+            renderChannels();
+        }
+
+        function showAllChannels() {
+            currentFilter = 'all';
+            applyFilter();
+            showToast('Mostrando todos los canales', 'info');
+        }
+
+        function showOnlineOnly() {
+            currentFilter = 'online';
+            applyFilter();
+            showToast('Mostrando solo canales en línea', 'info');
+        }
+
+        function showOfflineOnly() {
+            currentFilter = 'offline';
+            applyFilter();
+            showToast('Mostrando solo canales caídos', 'info');
+        }
+
+        // ==========================================
+        // EXPORTAR LISTA
+        // ==========================================
+
+        function downloadList() {
+            if (channels.length === 0) {
+                showToast('No hay canales para exportar', 'warning');
+                return;
+            }
+
+            let text = '#EXTM3U\n';
+
+            channels.forEach(channel => {
+                text += `#EXTINF:-1 tvg-name="${channel.name}" tvg-logo="${channel.logo || ''}" group-title="${channel.group}",${channel.name}\n`;
+                text += `${channel.url}\n`;
+            });
+
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'lista_editada.m3u';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('Lista exportada correctamente', 'success');
+        }
+    </script>
 </body>
 </html>
